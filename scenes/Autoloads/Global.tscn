@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://jslqmohl7pd4"]
+
+[sub_resource type="GDScript" id="GDScript_cn3ss"]
+resource_name = "Globals"
+script/source = "extends Node
+
+var cats_caught = 0
+"
+
+[node name="Global" type="Node"]
+script = SubResource("GDScript_cn3ss")
