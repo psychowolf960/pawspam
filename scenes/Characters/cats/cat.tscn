@@ -43,7 +43,7 @@ var state := State.IDLE
 var target: Node3D
 var gravity: float = ProjectSettings.get_setting(\"physics/3d/default_gravity\")
 var rarity: Rarity = Rarity.COMMON
-var is_catchable := true  # Flag to prevent multiple catches
+var is_catchable := true
 
 func _ready():
 	player = get_tree().get_first_node_in_group(\"player\")
@@ -51,10 +51,9 @@ func _ready():
 	
 	_setup_rarity_and_material()
 
-	_setup_catch_area()
 
 func _setup_rarity_and_material():
-	# Roll for rarity based on weights
+
 	rarity = _roll_rarity()
 
 	set_meta(\"rarity\", rarity)
@@ -69,23 +68,19 @@ func _setup_rarity_and_material():
 		mesh_instance = $cat_rigged/metarig/Skeleton3D/armature
 		
 		if mesh_instance and mesh_instance is MeshInstance3D:
-			# Create a unique material instance for this cat
 			var unique_material = base_material.duplicate()
 			
-			# Apply rarity color modulation
 			if unique_material is StandardMaterial3D:
 				var base_color = unique_material.albedo_color
 				unique_material.albedo_color = base_color * rarity_colors[rarity]
 				
-				# Add emission for rarer cats
 				if rarity >= Rarity.RARE:
 					unique_material.emission_enabled = true
 					unique_material.emission = rarity_colors[rarity]
 					unique_material.emission_energy = 0.1 * (rarity + 1)
 			
 			mesh_instance.material_override = unique_material
-	
-	# Optional: Add visual effects based on rarity
+
 	_add_rarity_effects()
 
 func _roll_rarity() -> Rarity:
@@ -104,7 +99,6 @@ func _roll_rarity() -> Rarity:
 	return Rarity.COMMON
 
 func _add_rarity_effects():
-	# Add particle effects or other visual indicators for rare cats
 	if rarity >= Rarity.RARE:
 		var particles = $GPUParticles3D
 		particles.amount = 10 * (rarity + 1)
@@ -116,24 +110,6 @@ func _add_rarity_effects():
 		
 		particles.process_material = process_material		
 
-func _setup_catch_area():
-	# Check if there's already an Area3D for catching
-	var catch_area = get_node_or_null(\"CatchArea\")
-	if not catch_area:
-		catch_area = Area3D.new()
-		catch_area.name = \"CatchArea\"
-		
-		var collision_shape = CollisionShape3D.new()
-		var shape = SphereShape3D.new()
-		shape.radius = 1.0  # Adjust catch radius as needed
-		collision_shape.shape = shape
-		
-		catch_area.add_child(collision_shape)
-		add_child(catch_area)
-	
-	# Connect the catch signal
-	if not catch_area.body_entered.is_connected(_on_body_entered):
-		catch_area.body_entered.connect(_on_body_entered)
 
 func _physics_process(delta):
 	var on_floor := is_on_floor()
@@ -147,15 +123,13 @@ func _physics_process(delta):
 	var player_dist = global_position.distance_to(player.global_position)
 	var player_visible = player_dist < detect_range and not is_behind(player.global_position)
 	
-	# State decision
 	if player_visible and (player_dist < priority_dist or state == State.FLEEING):
 		state = State.FLEEING
 		target = player
 	elif state != State.FLEEING:
 		target = find_best_distraction()
 		state = State.INVESTIGATING if target else State.IDLE
-	
-	# Execute state
+
 	match state:
 		State.IDLE:
 			if has_node(\"%CatAnimation\"):
@@ -211,7 +185,7 @@ func find_best_distraction() -> Node3D:
 func move_to(pos: Vector3, delta: float):
 	var dir = (pos - global_position).normalized()
 	var dist = global_position.distance_to(pos)
-	var y_vel = velocity.y  # keep gravity/floor
+	var y_vel = velocity.y
 	velocity = dir * lerp(min_speed, max_speed * 0.6, dist / detect_range)
 	velocity.y = y_vel
 	rotate_toward_velocity(delta)
@@ -234,11 +208,10 @@ func _on_body_entered(body):
 
 func catch_cat():
 	if not is_catchable:
-		return  # Already caught, prevent double-catching
+		return
 	
 	is_catchable = false
-	
-	# Add points based on rarity
+
 	var points = rarity_points[rarity]
 		
 	Global.cats_caught += points
@@ -2097,11 +2070,11 @@ collision_mask = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2.212749)
 shape = SubResource("BoxShape3D_by7tc")
 
-[node name="Area3D" type="Area3D" parent="."]
+[node name="CatchArea" type="Area3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46187973, 0)
 collision_mask = 2
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CatchArea"]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)
 shape = SubResource("CapsuleShape3D_k07po")
 
@@ -2116,4 +2089,4 @@ draw_pass_1 = SubResource("SphereMesh_63oar")
 
 [connection signal="body_entered" from="Deadangle" to="." method="_on_deadangle_body_entered"]
 [connection signal="body_exited" from="Deadangle" to="." method="_on_deadangle_body_exited"]
-[connection signal="body_entered" from="Area3D" to="." method="_on_body_entered"]
+[connection signal="body_entered" from="CatchArea" to="." method="_on_body_entered"]
