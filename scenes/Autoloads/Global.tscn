@@ -6,7 +6,7 @@ script/source = "extends Node
 
 var cats_caught = 0
 var money: int = 100
-
+var slots_unlocked = 1
 var lures: int = 0
 
 var laser: int = 0
@@ -19,7 +19,7 @@ var rare_net: int = 0
 
 var vacuum: int = 0
 var rare_vacuum: int = 0
-
+ 
 func save_game() -> Dictionary: #TODO save this to user files instead
 	return {
 		\"money\": money,

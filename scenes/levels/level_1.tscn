@@ -1,12 +1,14 @@
-[gd_scene load_steps=133 format=4 uid="uid://cmwm8gwadjxrw"]
+[gd_scene load_steps=137 format=4 uid="uid://cmwm8gwadjxrw"]
 
 [ext_resource type="Script" uid="uid://csjccrhj5wnx7" path="res://addons/phantom_camera/scripts/phantom_camera/phantom_camera_3d.gd" id="1_6761a"]
 [ext_resource type="Script" uid="uid://8umksf8e80fw" path="res://addons/phantom_camera/scripts/resources/tween_resource.gd" id="2_sk5k4"]
 [ext_resource type="Script" uid="uid://b8hhnqsugykly" path="res://addons/phantom_camera/scripts/resources/camera_3d_resource.gd" id="3_oc4kc"]
 [ext_resource type="Script" uid="uid://bd046eokvcnu2" path="res://addons/phantom_camera/scripts/phantom_camera_host/phantom_camera_host.gd" id="4_s8va5"]
 [ext_resource type="Script" uid="uid://34uhyq3cpi67" path="res://addons/phantom_camera/examples/scripts/3D/player_controller_third_person.gd" id="5_oc4kc"]
+[ext_resource type="Texture2D" uid="uid://dn2mj613lwd7o" path="res://assets/New folder/slot_full.png" id="5_wtwp4"]
 [ext_resource type="Texture2D" uid="uid://bhauofahsopgv" path="res://assets/Models/Player_character_256.png" id="6_s8va5"]
 [ext_resource type="Animation" uid="uid://bdtyas5u3c76j" path="res://assets/Animations/Jump.res" id="7_excbq"]
+[ext_resource type="Texture2D" uid="uid://dqy41pppiye6f" path="res://assets/New folder/slot_empty.png" id="7_wtwp4"]
 [ext_resource type="Animation" uid="uid://di6m18j11ukk3" path="res://assets/Animations/Run.res" id="8_iav0o"]
 [ext_resource type="Animation" uid="uid://b578rqo0vby50" path="res://assets/Animations/Walk.res" id="9_dnkej"]
 [ext_resource type="Animation" uid="uid://bll3wrlvooqn3" path="res://assets/Animations/Idle.res" id="10_mm8aj"]
@@ -190,6 +192,9 @@ ambient_light_energy = 2.0
 tonemap_mode = 2
 glow_enabled = true
 glow_intensity = 0.5
+fog_light_color = Color(1, 1, 1, 1)
+fog_density = 0.002
+fog_sky_affect = 0.0
 
 [sub_resource type="Resource" id="Resource_qxy0u"]
 script = ExtResource("2_sk5k4")
@@ -203,8 +208,39 @@ script = ExtResource("3_oc4kc")
 [sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_iav0o"]
 dof_blur_amount = 0.05
 
-[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_dnkej"]
+[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_mm8aj"]
 dof_blur_amount = 0.05
+
+[sub_resource type="GDScript" id="GDScript_np2pn"]
+resource_name = "CatSLots"
+script/source = "extends GridContainer
+
+@export var texture_full: Texture2D
+@export var texture_empty: Texture2D
+
+func _ready():
+	update_slots()
+	SignalBus.slot_changed.connect(update_slots)
+
+func update_slots():
+	for child in get_children():
+		child.queue_free()
+
+	var total_slots = Global.slots_unlocked
+	var cats_caught = Global.cats_caught
+
+	for i in total_slots:
+		var slot = TextureRect.new()
+		slot.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED 
+		slot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		slot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		
+		if i < cats_caught:
+			slot.texture = texture_full
+		else:
+			slot.texture = texture_empty
+		add_child(slot)
+"
 
 [sub_resource type="GDScript" id="GDScript_iwr0g"]
 resource_name = "Hotbar"
@@ -252,6 +288,7 @@ size = Vector3(0.5, 0.5, 0.3)
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_eypu5"]
 resource_name = "character_256"
 cull_mode = 2
+shading_mode = 0
 albedo_texture = ExtResource("6_s8va5")
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_wfw88"]
@@ -539,25 +576,26 @@ _data = {
 &"Walk": ExtResource("9_dnkej")
 }
 
+[sub_resource type="SphereMesh" id="SphereMesh_mm8aj"]
+
 [sub_resource type="BoxMesh" id="BoxMesh_d24c3"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wtwp4"]
 albedo_color = Color(0.53333336, 0.56078434, 0.6784314, 1)
-
-[sub_resource type="SphereMesh" id="SphereMesh_mm8aj"]
 
 [sub_resource type="GDScript" id="GDScript_wtwp4"]
 resource_name = "ShopArea"
 script/source = "extends Area3D
 
 @export var area_pcam: PhantomCamera3D
+@export var money_label: Label
+@export var money_label2: Label
 
 var initial_camera_position: Vector3
 var initial_camera_rotation: Vector3
 
 var tween: Tween
 var tween_duration: float = 0.9
-
 
 func _ready() -> void:
 	connect(\"area_entered\", _entered_area)
@@ -570,6 +608,7 @@ func _entered_area(area_3D: Area3D) -> void:
 		$\"../CSGBox3D/UpgradeMenu\".visible = true
 		area_pcam.set_priority(20)
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		_sell_cats()
 
 
 func _exited_area(area_3D: Area3D) -> void:
@@ -578,6 +617,28 @@ func _exited_area(area_3D: Area3D) -> void:
 		$\"../CSGBox3D/UpgradeMenu\".visible = false
 		area_pcam.set_priority(0)
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _sell_cats() -> void:
+	var cats_to_sell = min(Global.cats_caught, Global.slots_unlocked)
+	Global.money += cats_to_sell * 10
+	var label = Label3D.new()
+	label.text = str(cats_to_sell * 10) +\"$\"
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	
+	get_parent().add_child(label)
+	label.global_position = global_position + Vector3.UP * 2
+	
+	var tween = get_tree().create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, \"position:y\", label.position.y + 2, 1.0)
+	tween.tween_property(label, \"modulate:a\", 0, 1.0)
+	tween.chain().tween_callback(label.queue_free)
+	Global.cats_caught = 0
+	SignalBus.emit_signal(\"slot_changed\")
+	money_label.text = str(Global.money) + \"$\"
+	money_label2.text =  str(Global.money) + \"$\"
 "
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_mm8aj"]
@@ -587,7 +648,7 @@ size = Vector3(4.3479004, 1, 3.1348877)
 viewport_path = NodePath("Shop/CSGBox3D/SubViewport")
 
 [sub_resource type="BoxMesh" id="BoxMesh_mm8aj"]
-size = Vector3(5, 3, 3)
+size = Vector3(5, 4, 3)
 
 [sub_resource type="GDScript" id="GDScript_mm8aj"]
 script/source = "extends Node
@@ -600,6 +661,7 @@ script/source = "extends Node
 @export var vacuum_price: int = 150
 @export var rare_vacuum_price: int = 350
 @export var laser_price: int = 300
+@export var slot_price: int = 300
 
 func _ready() -> void:
 	update_buttons()
@@ -622,6 +684,13 @@ func _on_rare_water_gun_pressed():
 		Global.rare_water_gun = 1
 
 		Global.water_gun = 1
+		update_buttons()
+		
+func _on_slot_pressed() -> void:
+	if Global.money >= slot_price:
+		Global.money -= slot_price * Global.slots_unlocked/2
+		Global.slots_unlocked += 1
+		SignalBus.emit_signal(\"slot_changed\")
 		update_buttons()
 
 func _on_net_pressed():
@@ -1129,6 +1198,45 @@ data = PackedVector3Array(-0.17999999, 0, 0.19999999, 0.17999999, 0, 0.19999999,
 [sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_h8f0m"]
 data = PackedVector3Array(-0.13, 0.01, -0.099999994, 0.13, 0.01, -0.099999994, 0.13, 0.01, 0.099999994, 0.13, 0.01, 0.099999994, -0.13, 0.01, 0.099999994, -0.13, 0.01, -0.099999994, -0.13, 0.01, -0.099999994, -0.17999999, 0, -0.099999994, 0.17999999, 0, -0.099999994, 0.17999999, 0, -0.099999994, 0.13, 0.01, -0.099999994, -0.13, 0.01, -0.099999994, 0.13, 0.01, 0.099999994, 0.17999999, 0, 0.099999994, -0.17999999, 0, 0.099999994, -0.17999999, 0, 0.099999994, -0.13, 0.01, 0.099999994, 0.13, 0.01, 0.099999994, -0.17999999, 0, 0.099999994, 0.17999999, 0, 0.099999994, 0.17999999, 0, -0.099999994, 0.17999999, 0, -0.099999994, -0.17999999, 0, -0.099999994, -0.17999999, 0, 0.099999994, 0.13, 0.01, -0.099999994, 0.17999999, 0, -0.099999994, 0.17999999, 0, 0.099999994, 0.17999999, 0, 0.099999994, 0.13, 0.01, 0.099999994, 0.13, 0.01, -0.099999994, -0.17999999, 0, -0.099999994, -0.13, 0.01, -0.099999994, -0.13, 0.01, 0.099999994, -0.13, 0.01, 0.099999994, -0.17999999, 0, 0.099999994, -0.17999999, 0, -0.099999994)
 
+[sub_resource type="GDScript" id="GDScript_bahl2"]
+resource_name = "SpawnManager"
+script/source = "extends Node3D
+
+@export var cat_scene: PackedScene
+@export var cats_parent: Node
+@export var spawn_count: int = 5
+@export var check_interval: float = 1.0
+
+var _timer: Timer
+
+func _ready() -> void:
+	_timer = Timer.new()
+	_timer.wait_time = check_interval
+	_timer.autostart = true
+	_timer.one_shot = false
+	_timer.timeout.connect(_on_timer_timeout)
+	add_child(_timer)
+
+func _on_timer_timeout() -> void:
+	maintain_cats()
+
+func maintain_cats() -> void:
+
+	var current_count := cats_parent.get_child_count()
+	var to_spawn := spawn_count - current_count
+
+	if to_spawn > 0:
+		var markers: Array = []
+		for child in get_children():
+			if child is Marker3D:
+				markers.append(child)
+		for i in range(to_spawn):
+			var cat: Node3D = cat_scene.instantiate()
+			var marker: Marker3D = markers.pick_random()
+			cat.global_transform = marker.global_transform
+			cats_parent.add_child(cat)
+"
+
 [node name="Level1" type="Node3D"]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
@@ -1153,7 +1261,7 @@ spring_length = 3.5
 unique_name_in_owner = true
 physics_interpolation_mode = 1
 transform = Transform3D(0.99990255, 0.013962194, 0, -0.013962194, 0.99990255, 0, 0, 0, 1, 0, 1, 5.5220933)
-attributes = SubResource("CameraAttributesPractical_dnkej")
+attributes = SubResource("CameraAttributesPractical_mm8aj")
 
 [node name="PhantomCameraHost" type="Node" parent="MainCamera3D"]
 process_priority = 300
@@ -1161,6 +1269,32 @@ process_physics_priority = 300
 script = ExtResource("4_s8va5")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="MainCamera3D"]
+
+[node name="CatSlots2" type="GridContainer" parent="MainCamera3D/CanvasLayer"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 6.0
+offset_top = 7.0
+offset_right = -6.0
+offset_bottom = 144.0
+grow_horizontal = 2
+mouse_filter = 2
+columns = 16
+script = SubResource("GDScript_np2pn")
+texture_full = ExtResource("5_wtwp4")
+texture_empty = ExtResource("7_wtwp4")
+
+[node name="Slot" type="TextureRect" parent="MainCamera3D/CanvasLayer/CatSlots2"]
+texture_filter = 1
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("7_wtwp4")
+
+[node name="Slot1" type="TextureRect" parent="MainCamera3D/CanvasLayer/CatSlots2"]
+texture_filter = 1
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("7_wtwp4")
 
 [node name="Hotbar" type="Control" parent="MainCamera3D/CanvasLayer"]
 layout_mode = 3
@@ -1730,38 +1864,29 @@ libraries = {
 }
 autoplay = "PlayerCharacter/Idle"
 
-[node name="Environment" type="Node" parent="."]
+[node name="Distraction" type="MeshInstance3D" parent="." groups=["distraction"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.49284077, 1.4456828, 9.904599)
+mesh = SubResource("SphereMesh_mm8aj")
 
-[node name="Floor" type="CSGMesh3D" parent="Environment"]
+[node name="Floor" type="CSGMesh3D" parent="."]
 transform = Transform3D(1000, 0, 0, 0, 1, 0, 0, 0, 1000, 0, -1, 0)
 use_collision = true
 mesh = SubResource("BoxMesh_d24c3")
 material = SubResource("StandardMaterial3D_wtwp4")
 metadata/_edit_lock_ = true
 
-[node name="Cat" parent="." instance=ExtResource("12_iav0o")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.0118833, -0.31160414, 3.414427)
-
-[node name="Cat2" parent="." instance=ExtResource("12_iav0o")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2172103, -0.31160367, 5.8330574)
-
-[node name="Cat3" parent="." instance=ExtResource("12_iav0o")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.010937, 0.1557101, -3.7032318)
-
-[node name="Distraction" type="MeshInstance3D" parent="." groups=["distraction"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.49284077, 1.4456828, 9.904599)
-mesh = SubResource("SphereMesh_mm8aj")
-
 [node name="Shop" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -37.765785)
 
-[node name="Area3D" type="Area3D" parent="Shop" node_paths=PackedStringArray("area_pcam")]
+[node name="SellArea3D" type="Area3D" parent="Shop" node_paths=PackedStringArray("area_pcam", "money_label", "money_label2")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2109375, -4.228607)
 collision_mask = 16
 script = SubResource("GDScript_wtwp4")
 area_pcam = NodePath("../PhantomCamera3D")
+money_label = NodePath("../CSGBox3D/SubViewport/UpgradeMenu3D/Money")
+money_label2 = NodePath("../CSGBox3D/UpgradeMenu/Money")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Shop/Area3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Shop/SellArea3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.1819673, 3.1428833)
 shape = SubResource("BoxShape3D_mm8aj")
 
@@ -1785,6 +1910,19 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="Money" type="Label" parent="Shop/CSGBox3D/SubViewport/UpgradeMenu3D"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -52.5
+offset_top = 210.0
+offset_right = 60.5
+offset_bottom = 263.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 32
+text = "Money"
 
 [node name="HBoxContainer" type="HBoxContainer" parent="Shop/CSGBox3D/SubViewport/UpgradeMenu3D"]
 layout_mode = 1
@@ -1841,6 +1979,10 @@ text = "Vacuum"
 layout_mode = 2
 text = "Vacuum +"
 
+[node name="SlotButton" type="Button" parent="Shop/CSGBox3D/SubViewport/UpgradeMenu3D/HBoxContainer"]
+layout_mode = 2
+text = "Slot"
+
 [node name="UpgradeMenu" type="Control" parent="Shop/CSGBox3D"]
 visible = false
 layout_mode = 3
@@ -1850,6 +1992,20 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = SubResource("GDScript_mm8aj")
+slot_price = 50
+
+[node name="Money" type="Label" parent="Shop/CSGBox3D/UpgradeMenu"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -52.5
+offset_top = 210.0
+offset_right = 60.5
+offset_bottom = 263.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 32
+text = "Money"
 
 [node name="HBoxContainer" type="HBoxContainer" parent="Shop/CSGBox3D/UpgradeMenu"]
 layout_mode = 1
@@ -1871,7 +2027,7 @@ text = "Food"
 
 [node name="LaserButton" type="Button" parent="Shop/CSGBox3D/UpgradeMenu/HBoxContainer"]
 layout_mode = 2
-text = "Food"
+text = "Laser"
 
 [node name="Net" type="VBoxContainer" parent="Shop/CSGBox3D/UpgradeMenu/HBoxContainer"]
 layout_mode = 2
@@ -1905,6 +2061,10 @@ text = "Vacuum"
 [node name="RareVacuumButton" type="Button" parent="Shop/CSGBox3D/UpgradeMenu/HBoxContainer/Vacuum"]
 layout_mode = 2
 text = "Vacuum +"
+
+[node name="Slot" type="Button" parent="Shop/CSGBox3D/UpgradeMenu/HBoxContainer"]
+layout_mode = 2
+text = "Slot"
 
 [node name="PhantomCamera3D" type="Node3D" parent="Shop"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 1.7)
@@ -2584,6 +2744,34 @@ skeleton = NodePath("")
 transform = Transform3D(-1.09278474e-07, 0, -2.5, 0, 2.5, 0, 2.5, 0, -1.09278474e-07, 0.3000001, 0, 9)
 shape = SubResource("ConcavePolygonShape3D_h8f0m")
 
+[node name="Zone1" type="Node3D" parent="." node_paths=PackedStringArray("cats_parent")]
+script = SubResource("GDScript_bahl2")
+cat_scene = ExtResource("12_iav0o")
+cats_parent = NodePath("Cats")
+spawn_count = 3
+
+[node name="Marker3D" type="Marker3D" parent="Zone1"]
+
+[node name="Marker3D2" type="Marker3D" parent="Zone1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0, 0)
+
+[node name="Marker3D3" type="Marker3D" parent="Zone1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 0, 0)
+
+[node name="Marker3D4" type="Marker3D" parent="Zone1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 14)
+
+[node name="Marker3D7" type="Marker3D" parent="Zone1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -16)
+
+[node name="Marker3D5" type="Marker3D" parent="Zone1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0, 14)
+
+[node name="Marker3D6" type="Marker3D" parent="Zone1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 0, 14)
+
+[node name="Cats" type="Node3D" parent="Zone1"]
+
 [connection signal="pressed" from="Shop/CSGBox3D/SubViewport/UpgradeMenu3D/HBoxContainer/FoodButton" to="Shop/CSGBox3D/SubViewport/UpgradeMenu3D" method="_on_food_pressed"]
 [connection signal="pressed" from="Shop/CSGBox3D/SubViewport/UpgradeMenu3D/HBoxContainer/LaserButton" to="Shop/CSGBox3D/SubViewport/UpgradeMenu3D" method="_on_laser_pressed"]
 [connection signal="pressed" from="Shop/CSGBox3D/SubViewport/UpgradeMenu3D/HBoxContainer/Net/NetButton" to="Shop/CSGBox3D/SubViewport/UpgradeMenu3D" method="_on_net_pressed"]
@@ -2600,3 +2788,4 @@ shape = SubResource("ConcavePolygonShape3D_h8f0m")
 [connection signal="pressed" from="Shop/CSGBox3D/UpgradeMenu/HBoxContainer/WaterGun/RareWaterGunButton" to="Shop/CSGBox3D/UpgradeMenu" method="_on_rare_water_gun_button_pressed"]
 [connection signal="pressed" from="Shop/CSGBox3D/UpgradeMenu/HBoxContainer/Vacuum/VacuumButton" to="Shop/CSGBox3D/UpgradeMenu" method="_on_vacuum_pressed"]
 [connection signal="pressed" from="Shop/CSGBox3D/UpgradeMenu/HBoxContainer/Vacuum/RareVacuumButton" to="Shop/CSGBox3D/UpgradeMenu" method="_on_rare_vacuum_pressed"]
+[connection signal="pressed" from="Shop/CSGBox3D/UpgradeMenu/HBoxContainer/Slot" to="Shop/CSGBox3D/UpgradeMenu" method="_on_slot_pressed"]

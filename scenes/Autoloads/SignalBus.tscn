@@ -5,6 +5,7 @@ resource_name = "SignalBus"
 script/source = "extends Node
 
 signal item_changed
+signal slot_changed
 "
 
 [node name="SignalBus" type="Node"]
