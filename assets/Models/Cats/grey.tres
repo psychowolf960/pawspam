@@ -1,0 +1,9 @@
+[gd_resource type="StandardMaterial3D" load_steps=2 format=3 uid="uid://c05i1yviv2vmv"]
+
+[ext_resource type="Texture2D" uid="uid://c7yjm1wg3ccbd" path="res://assets/Models/Cats/grey.png" id="1_qrrnu"]
+
+[resource]
+resource_name = "cat 1 ornage"
+cull_mode = 2
+albedo_texture = ExtResource("1_qrrnu")
+roughness = 0.5

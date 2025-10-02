@@ -5,6 +5,51 @@ resource_name = "Globals"
 script/source = "extends Node
 
 var cats_caught = 0
+var money: int = 100
+
+var lures: int = 0
+
+var laser: int = 0
+
+var water_gun: int = 0
+var rare_water_gun: int = 0
+
+var net: int = 0
+var rare_net: int = 0
+
+var vacuum: int = 0
+var rare_vacuum: int = 0
+
+func save_game() -> Dictionary: #TODO save this to user files instead
+	return {
+		\"money\": money,
+		\"lures\": lures,
+		\"water_gun\": water_gun,
+		\"rare_water_gun\": rare_water_gun,
+		\"net\": net,
+		\"rare_net\": rare_net,
+		\"vacuum\": vacuum,
+		\"rare_vacuum\": rare_vacuum
+	}
+
+func load_game(data: Dictionary) -> void:
+	money = data.get(\"money\", 0)
+	lures = data.get(\"lures\", 0)
+	water_gun = data.get(\"water_gun\", 0)
+	rare_water_gun = data.get(\"rare_water_gun\", 0)
+	net = data.get(\"net\", 0)
+	rare_net = data.get(\"rare_net\", 0)
+	vacuum = data.get(\"vacuum\", 0)
+	rare_vacuum = data.get(\"rare_vacuum\", 0)
+
+func reset_upgrades() -> void:
+	lures = 0
+	water_gun = 0
+	rare_water_gun = 0
+	net = 0
+	rare_net = 0
+	vacuum = 0
+	rare_vacuum = 0
 "
 
 [node name="Global" type="Node"]

@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://d2eapew55mu6m"]
+
+[sub_resource type="GDScript" id="GDScript_xq7cw"]
+resource_name = "SignalBus"
+script/source = "extends Node
+
+signal item_changed
+"
+
+[node name="SignalBus" type="Node"]
+script = SubResource("GDScript_xq7cw")

@@ -106,3 +106,7 @@ func set_pcam_rotation(pcam: PhantomCamera3D, event: InputEvent) -> void:
 		pcam_rotation_degrees.y = wrapf(pcam_rotation_degrees.y, 0, 360)
 		
 		pcam.set_third_person_rotation_degrees(pcam_rotation_degrees)
+
+
+func _on_food_pressed() -> void:
+	pass # Replace with function body.
